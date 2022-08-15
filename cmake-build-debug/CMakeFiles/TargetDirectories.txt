@@ -1,0 +1,3 @@
+/Users/benjaminlewis-jones/Documents/GitHub/Malock/cmake-build-debug/CMakeFiles/Malock.dir
+/Users/benjaminlewis-jones/Documents/GitHub/Malock/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/benjaminlewis-jones/Documents/GitHub/Malock/cmake-build-debug/CMakeFiles/rebuild_cache.dir
