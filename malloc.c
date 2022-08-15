@@ -3,7 +3,8 @@
 //
 
 #include <unistd.h>
-#include <printf.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define PAGESIZE 4069
 
@@ -13,22 +14,40 @@ typedef struct metadata {
     int length;
     int free; // 0 - taken, 1 - free
 
+    struct metadata * next;
+    struct metadata * prev;
+
 } metadata;
 
+
+
 metadata * start;
+metadata * headOfFreeList;
 
 
-
-
+//
 void init() {
     start = sbrk(PAGESIZE);
     start->free = 1;
     start->length = PAGESIZE - sizeof(start);
+    start->next = NULL;
+
+    headOfFreeList = start;
 }
 
+
+
+//
 void newFree(metadata * freedBlock) {
     freedBlock->free = 1;
+
+    freedBlock->next = headOfFreeList->next;
+    headOfFreeList->next = freedBlock;
+    freedBlock->prev = headOfFreeList;
+
 }
+
+
 
 
 int getGapToNextBlock(metadata * newBlock, int oldLength) {
@@ -38,31 +57,20 @@ int getGapToNextBlock(metadata * newBlock, int oldLength) {
 
 }
 
+void pointToNextAvailableSpace(metadata * current, metadata * previous, int size) {
 
 
+}
 
-void * newMalloc(int size) {
+void createMetadata(metadata * current, metadata * previous, int size) {
+    // free block, and length is allocated
+    current->free = 0;
+    current->length = size;
 
-    // look at start of list
-    metadata * ptr = start;
+    previous->next = current->next;
+}
 
-
-    // if not free move forward OR if it does not fit inside the gap
-    while (ptr->free == 0 || ptr->length < (size + sizeof(metadata))) {
-
-        ptr += ptr->length + sizeof(metadata);
-
-    }
-
-    // storing old length
-    int oldLength = ptr->length;
-
-    // free block made not free, and length is allocated
-    ptr->free = 0;
-    ptr->length = size;
-
-    // pointer to new block
-    metadata * newBlock = ptr;
+void createMetadataForNewFreeBlock(metadata * ptr, metadata * newBlock, int oldLength) {
 
     // move to new metadata location
     ptr += ptr->length + sizeof(metadata);
@@ -71,6 +79,41 @@ void * newMalloc(int size) {
     // set the new metadata to free
     metadata newMetadata = {getGapToNextBlock(newBlock, oldLength), 1};
     *ptr = newMetadata;
+
+    ptr->next = headOfFreeList->next;
+    headOfFreeList->next = ptr;
+
+}
+
+
+void * newMalloc(int size) {
+
+    // look at start of list
+    metadata * previous = headOfFreeList;
+    metadata * current = headOfFreeList->next;
+
+    if (current == NULL) {
+        current = previous;
+    } else {
+        // if not free move forward OR if it does not fit inside the gap
+        while (current->free == 0 || current->length < (size + sizeof(metadata))) {
+
+            previous = current;
+            current = current->next;
+            current->prev = previous;
+
+        }
+    }
+
+    // storing old length
+    int oldLength = current->length;
+
+    createMetadata(current, previous, size);
+
+    // pointer to new block
+    metadata * newBlock = current;
+
+    createMetadataForNewFreeBlock(current, newBlock, oldLength);
 
     // return location of new block
     return newBlock;
@@ -89,16 +132,19 @@ int main() {
     metadata * addrC;
 
     addr1 = newMalloc(100);
-    addr2 = newMalloc(100);
-    addr3 = newMalloc(100);
+    addr2 = newMalloc(110);
+    addr3 = newMalloc(120);
+    
+//
+//    newFree(addr2);
+//
+//    addrA = newMalloc(30);
+//    addrB = newMalloc(10);
+//    addrC = newMalloc(4);
 
-    newFree(addr2);
+    printf("size of metadata: %lu\n", sizeof(metadata));
 
-    addrA = newMalloc(50);
-    addrB = newMalloc(35);
-    addrC = newMalloc(34);
-
-
+    printf("length: %lu\n", addr1->next->next->length);
 
     return 0;
 }
