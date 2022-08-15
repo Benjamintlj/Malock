@@ -26,6 +26,18 @@ void init() {
     start->length = PAGESIZE - sizeof(start);
 }
 
+void newFree(metadata * freedBlock) {
+    freedBlock->free = 1;
+}
+
+
+int getGapToNextBlock(metadata * newBlock, int oldLength) {
+
+    printf("space to next: %d\n", ((oldLength - newBlock->length) - sizeof(metadata)));
+    return (oldLength - newBlock->length) - sizeof(metadata);
+
+}
+
 
 
 
@@ -34,15 +46,16 @@ void * newMalloc(int size) {
     // look at start of list
     metadata * ptr = start;
 
-    int length = 0;
 
-    // if not free move forward
-    while (ptr->free == 0) {
+    // if not free move forward OR if it does not fit inside the gap
+    while (ptr->free == 0 || ptr->length < (size + sizeof(metadata))) {
 
-        length += ptr->length + sizeof(metadata);
         ptr += ptr->length + sizeof(metadata);
 
     }
+
+    // storing old length
+    int oldLength = ptr->length;
 
     // free block made not free, and length is allocated
     ptr->free = 0;
@@ -56,22 +69,12 @@ void * newMalloc(int size) {
 
     // length of new metadata to the space to the next block
     // set the new metadata to free
-    metadata newMetadata = {PAGESIZE - length, 1};
+    metadata newMetadata = {getGapToNextBlock(newBlock, oldLength), 1};
     *ptr = newMetadata;
 
     // return location of new block
     return newBlock;
 }
-
-void newFree(metadata * freedBlock) {
-    freedBlock->free = 1;
-}
-
-
-int getGapToNextBlock() {
-    return 0;
-}
-
 
 
 int main() {
@@ -81,13 +84,21 @@ int main() {
     metadata * addr2;
     metadata * addr3;
 
+    metadata * addrA;
+    metadata * addrB;
+    metadata * addrC;
+
     addr1 = newMalloc(100);
     addr2 = newMalloc(100);
     addr3 = newMalloc(100);
 
-    printf("%p \n", addr1);
-    printf("%p \n", addr2);
-    printf("%p \n", addr3);
+    newFree(addr2);
+
+    addrA = newMalloc(50);
+    addrB = newMalloc(35);
+    addrC = newMalloc(34);
+
+
 
     return 0;
 }
