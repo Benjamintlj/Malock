@@ -25,6 +25,20 @@ metadata * start;
 metadata * headOfFreeList;
 
 
+void loopThroughFreeList() {
+
+    metadata * current = headOfFreeList->next;
+
+    while (current != NULL) {
+        printf("  %u", current->length);
+        current = current->next;
+    }
+
+    printf("\n");
+}
+
+
+
 //
 void init() {
     start = sbrk(PAGESIZE);
@@ -57,31 +71,27 @@ int getGapToNextBlock(metadata * newBlock, int oldLength) {
 
 }
 
-void pointToNextAvailableSpace(metadata * current, metadata * previous, int size) {
-
-
-}
-
 void createMetadata(metadata * current, metadata * previous, int size) {
     // free block, and length is allocated
     current->free = 0;
     current->length = size;
 
     previous->next = current->next;
+    current->prev = previous;
 }
 
-void createMetadataForNewFreeBlock(metadata * ptr, metadata * newBlock, int oldLength) {
+void createMetadataForNewFreeBlock(metadata * current, metadata * newBlock, int oldLength) {
 
     // move to new metadata location
-    ptr += ptr->length + sizeof(metadata);
+    current += current->length + sizeof(metadata);
 
     // length of new metadata to the space to the next block
     // set the new metadata to free
     metadata newMetadata = {getGapToNextBlock(newBlock, oldLength), 1};
-    *ptr = newMetadata;
+    *current = newMetadata;
 
-    ptr->next = headOfFreeList->next;
-    headOfFreeList->next = ptr;
+    current->next = headOfFreeList->next;
+    headOfFreeList->next = current;
 
 }
 
@@ -92,32 +102,57 @@ void * newMalloc(int size) {
     metadata * previous = headOfFreeList;
     metadata * current = headOfFreeList->next;
 
+    metadata * previousBestFit = NULL;
+    metadata * currentBestFit = NULL;
+
+    // occurs when heap is empty
     if (current == NULL) {
         current = previous;
     } else {
-        // if not free move forward OR if it does not fit inside the gap
-        while (current->free == 0 || current->length < (size + sizeof(metadata))) {
+
+        // move through the list to the end
+        while (current->next != NULL) {
 
             previous = current;
             current = current->next;
             current->prev = previous;
 
+            // stores the best fitting location
+            if (currentBestFit == NULL || current->length >= (size + sizeof(metadata)) && currentBestFit->length < current->length) {
+                currentBestFit = current;
+                previousBestFit = previous;
+            }
+        }
+
+        // if a best fitted location was found then make current equal to it
+        if (currentBestFit != NULL) {
+            current = currentBestFit;
+            previous = previousBestFit;
+        }
+
+        // if there is not enough space then make a new page
+        if (current->length < size) {
+            previous = current;
+            current = current->next;
+
+            // this should only occur when at the end of the free list and there is still not enough space
+            current = sbrk(PAGESIZE);
+            current->length = PAGESIZE - sizeof(metadata);
         }
     }
 
-    // storing old length
+
+    // allocate new block, and create new metadata
     int oldLength = current->length;
-
     createMetadata(current, previous, size);
-
-    // pointer to new block
     metadata * newBlock = current;
-
     createMetadataForNewFreeBlock(current, newBlock, oldLength);
 
     // return location of new block
     return newBlock;
 }
+
+
 
 
 int main() {
@@ -131,20 +166,18 @@ int main() {
     metadata * addrB;
     metadata * addrC;
 
-    addr1 = newMalloc(100);
-    addr2 = newMalloc(110);
-    addr3 = newMalloc(120);
-    
-//
-//    newFree(addr2);
-//
-//    addrA = newMalloc(30);
-//    addrB = newMalloc(10);
-//    addrC = newMalloc(4);
+    loopThroughFreeList();
+    addr1 = newMalloc(1000);
+    loopThroughFreeList();
+    addr2 = newMalloc(1000);
+    loopThroughFreeList();
+    addr3 = newMalloc(1000);
+    loopThroughFreeList();
 
-    printf("size of metadata: %lu\n", sizeof(metadata));
-
-    printf("length: %lu\n", addr1->next->next->length);
+    addrA = newMalloc(1000);
+    loopThroughFreeList();
+    addrB = newMalloc(800);
+    loopThroughFreeList();
 
     return 0;
 }
