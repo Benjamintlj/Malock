@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define PAGESIZE 4069
 
@@ -22,7 +23,14 @@ typedef struct metadata {
 
 
 metadata * start;
+
+// heads
 metadata * headOfFreeList;
+metadata * head64To127;
+metadata * head128To511;
+metadata * head512To1023;
+metadata * head1024To2047;
+metadata * head2048To4095;
 
 
 void loopThroughFreeList() {
@@ -149,7 +157,8 @@ void * newMalloc(int size) {
     createMetadataForNewFreeBlock(current, newBlock, oldLength);
 
     // return location of new block
-    return newBlock;
+    void * startOfNewBlock = (void *)newBlock + sizeof(metadata);
+    return startOfNewBlock;
 }
 
 
@@ -158,26 +167,40 @@ void * newMalloc(int size) {
 int main() {
     init();
 
-    metadata * addr1;
-    metadata * addr2;
-    metadata * addr3;
+    char * addr1;
+    char * addr2;
+    char * addr3;
+//
+//    char * addrA;
+//    char * addrB;
+//    char * addrC;
 
-    metadata * addrA;
-    metadata * addrB;
-    metadata * addrC;
+//    loopThroughFreeList();
+//    addr1 = (char *)newMalloc(1000);
+//    loopThroughFreeList();
+//    addr2 = (char *)newMalloc(1000);
+//    loopThroughFreeList();
+//    addr3 = (char *)newMalloc(1000);
+//    loopThroughFreeList();
+
 
     loopThroughFreeList();
-    addr1 = newMalloc(1000);
+    char* str = (char*) newMalloc(100);
+    stpcpy(str, "asdfasdfsdf");
+
+    printf("%s\n", str);
+    printf("%p\n", str);
+
     loopThroughFreeList();
-    addr2 = newMalloc(1000);
-    loopThroughFreeList();
-    addr3 = newMalloc(1000);
+    char* str1 = (char*) newMalloc(110);
+    stpcpy(str1, "hello hello");
+
+    printf("%s\n", str1);
+    printf("%p\n", str1);
+
     loopThroughFreeList();
 
-    addrA = newMalloc(1000);
-    loopThroughFreeList();
-    addrB = newMalloc(800);
-    loopThroughFreeList();
+
 
     return 0;
 }
