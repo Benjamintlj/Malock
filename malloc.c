@@ -25,17 +25,14 @@ typedef struct metadata {
 metadata * start;
 
 // heads
-metadata * headOfFreeList;
-metadata * head64To127;
-metadata * head128To511;
-metadata * head512To1023;
-metadata * head1024To2047;
-metadata * head2048To4095;
+metadata * headOfFL;
 
+metadata * head;
+metadata * headOfFreeList;
 
 void loopThroughFreeList() {
 
-    metadata * current = headOfFreeList->next;
+    metadata * current = headOfFL->next;
 
     while (current != NULL) {
         printf("  %u", current->length);
@@ -49,23 +46,48 @@ void loopThroughFreeList() {
 
 //
 void init() {
+
+    // head = sbrk(pagesize)
+    // head2 = sizeof(head)
+
+    const int size = sizeof(metadata);
+
+    /**
+     * 0 ... 63
+     * 64 ... 127
+     * 128 ... 511
+     * 512 ... 1023
+     * 1024 ... 2047
+     * 2048 ... 4095
+     */
+
+    struct metadata defaultMetadataForHead = {0, 0, NULL, NULL};
+
+    head = sbrk(PAGESIZE);
+    headOfFreeList = head;
+
+    for (int i = 0; i < 6; i++) {
+        *(head + i) = defaultMetadataForHead;
+    }
+
+
     start = sbrk(PAGESIZE);
     start->free = 1;
     start->length = PAGESIZE - sizeof(start);
     start->next = NULL;
 
-    headOfFreeList = start;
-}
 
+    headOfFL = start;
+}
 
 
 //
 void newFree(metadata * freedBlock) {
     freedBlock->free = 1;
 
-    freedBlock->next = headOfFreeList->next;
-    headOfFreeList->next = freedBlock;
-    freedBlock->prev = headOfFreeList;
+    freedBlock->next = headOfFL->next;
+    headOfFL->next = freedBlock;
+    freedBlock->prev = headOfFL;
 
 }
 
@@ -98,8 +120,8 @@ void createMetadataForNewFreeBlock(metadata * current, metadata * newBlock, int 
     metadata newMetadata = {getGapToNextBlock(newBlock, oldLength), 1};
     *current = newMetadata;
 
-    current->next = headOfFreeList->next;
-    headOfFreeList->next = current;
+    current->next = headOfFL->next;
+    headOfFL->next = current;
 
 }
 
@@ -107,8 +129,8 @@ void createMetadataForNewFreeBlock(metadata * current, metadata * newBlock, int 
 void * newMalloc(int size) {
 
     // look at start of list
-    metadata * previous = headOfFreeList;
-    metadata * current = headOfFreeList->next;
+    metadata * previous = headOfFL;
+    metadata * current = headOfFL->next;
 
     metadata * previousBestFit = NULL;
     metadata * currentBestFit = NULL;
